@@ -19,6 +19,10 @@ owm_api = os.environ.get('OWM_API')
 owm = OWM(owm_api)
 mgr = owm.weather_manager()
 
+def profanity_present(message:str):
+	profanities_present = sum([ 1 if i in message.lower() else 0 for i in ['fuck', 'cunt', 'bitch', 'slut', 'shit', 'wanker', 'asshole'] ])
+	return None if profanities_present == 0 else "Please don't swear ❌🤬"
+
 # /start 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -71,6 +75,11 @@ def send_forecast(message):
 	message1 = bot.send_message(message.chat.id, "For which city would you like to know the weather forecast? E.g. `London`, `London, UK`, `London, United Kingdom`")
 	bot.register_next_step_handler(message1, process_name_step)
 def process_name_step(message):
+	# If the message is a profanity, delete it and send a warning
+	if profanity_present(message.text) is not None: 
+		bot.delete_message(message.chat.id, message.message_id)
+		bot.send_message(message.chat.id, profanity_present(message.text))
+		return None
 	bot.send_message(message.chat.id, f"You have typed: {message.text}")
 	from pyowm.owm import OWM
 	from geopy.geocoders import Nominatim
@@ -125,6 +134,11 @@ def sticker_handler(message):
 # @bot.edited_message_handler(content_types=['text']) ## This decorator is useful if you also want to handle edited messages, i.e. someone edited message
 # and you handle it again, but the edited version this time
 def unknown_msg(message):
+	# If the message is a profanity, delete it and send a warning
+	if profanity_present(message.text) is not None: 
+		bot.delete_message(message.chat.id, message.message_id)
+		bot.send_message(message.chat.id, profanity_present(message.text))
+		return None
 	smile = '😕'
 	bot.reply_to(message, f'Unknown command {smile}; please try again or enter /help to check available commands.')
 	# ### Print user info to terminal
