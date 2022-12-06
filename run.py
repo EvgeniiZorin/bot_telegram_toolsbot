@@ -122,6 +122,57 @@ def process_name_step(message):
 			output += " - Failed to get hourly forecast for this location"
 		bot.send_message(message.chat.id, output)
 
+# Web scrape Wikipedia
+
+def get_wikipedia_info(category:str):
+	import requests
+	from bs4 import BeautifulSoup
+	import pandas as pd
+	#
+	month, date = pd.to_datetime('today').strftime('%B %d').split(' ')
+	url = f'https://en.wikipedia.org/wiki/{month}_{date}'
+	print(url)
+	# url = 'https://en.wikipedia.org/wiki/May_12'
+	#
+	page = requests.get(url)
+	soup = BeautifulSoup(
+		page.content, 
+		'html.parser'
+	)
+	#
+	totalText = soup.prettify()
+	totalText2 = soup.get_text()
+	#
+	totalText3 = totalText2.split('Events[edit]')[1]
+	events, births_deaths_holidays_references = totalText3.split('Births[edit]')
+	births, deaths_holidays_references        = births_deaths_holidays_references.split('Deaths[edit]')
+	deaths, holidays_references               = deaths_holidays_references.split('Holidays and observances[edit]')
+	holidays                                  = holidays_references.split('References[edit]')[0]
+	#
+	output_dict = {'events':events, 'births':births, 'deaths':deaths, 'holidays':holidays}
+	return output_dict[category]
+
+@bot.message_handler(commands=['events', 'births', 'deaths', 'holidays'])
+def print_births(message):
+	output = get_wikipedia_info(message.text[1:])
+	# bot.send_message(message.chat.id, f"The length of output is {len(output)} characters.")
+	if len(output) > 4000:
+		output2 = output.split('\n')
+		chunk = ''
+		while output2:
+			if len(chunk) < 3500:
+				chunk += output2.pop(0)
+				chunk += '\n'
+				if len(output2) == 0:
+					bot.send_message(message.chat.id, chunk)
+			else:
+				# print(chunk)
+				# print(len(chunk))
+				# print('-'*50)
+				bot.send_message(message.chat.id, chunk)
+				chunk = ''
+	else:
+		bot.send_message(message.chat.id, output)
 
 @bot.message_handler(content_types=['sticker'])
 def sticker_handler(message):
