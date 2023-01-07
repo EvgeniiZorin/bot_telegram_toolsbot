@@ -2,6 +2,8 @@ import telebot
 import config
 import random
 from telebot import types
+from telebot import formatting
+
 from pyowm.owm import OWM
 import requests
 import time
@@ -11,6 +13,9 @@ from typing import List, Dict
 import time
 import pandas as pd
 import os
+from urllib.request import urlopen
+from bs4 import BeautifulSoup
+import re
 
 
 telebot_token = os.environ.get('TELEBOT_API')
@@ -173,6 +178,66 @@ def print_births(message):
 				chunk = ''
 	else:
 		bot.send_message(message.chat.id, output)
+
+# WEb scrape the newspaper webpage
+
+def scrape_newspaper_funct():
+	""" returns a Pandas DataFrame"""
+	url = 'https://www.theguardian.com/world'
+	page = urlopen(url)
+	html = page.read().decode("utf-8")
+	soup = BeautifulSoup(html, "html.parser")
+	# print(soup)
+	stuff = soup.find_all('div',  class_="fc-item__container")
+	stuff
+	links, headlines, texts = [],[],[]
+	for i in stuff:
+		# print(i)
+		### LINKS
+		link = i.find('a')['href']
+		# print(link)
+		links.append(link)
+		### HEADLINE
+		headline = i.find('span', class_="js-headline-text").contents[0]
+		# print(headline)
+		headlines.append(headline)
+		### TEXT
+		text = i.find('div', class_="fc-item__standfirst").contents[0]
+		# print(text)
+		texts.append(text)
+	df = pd.DataFrame([], columns=['Headline', 'Text', 'Link'])
+	headlines = [ i.strip() for i in headlines ]
+	texts = [ i.strip() for i in texts ]
+	df['Headline'] = headlines
+	df['Text'] = texts
+	df['Link'] = links
+	return df
+
+
+@bot.message_handler(commands=['news'])
+def scrape_newspaper(message):
+	dataframe = scrape_newspaper_funct()
+	# Remove '' values, or rather, replace them with a ' ' space
+	dataframe.replace('', ' ', inplace=True)
+	dataframe.fillna(' ', inplace=True)
+	for index, row in dataframe.iterrows():
+		# one_news_piece = f"{row['Headline']}\n{row['Text']}\n{row['Link']}\n\n"
+		# bot.send_message(message.chat.id, one_news_piece)
+		bot.send_message(
+			message.chat.id, 
+			formatting.format_text(
+				formatting.mbold(row['Headline']), 
+				formatting.mitalic(row['Text']),
+				formatting.munderline(row['Link']),
+				separator='\n'
+			),
+			parse_mode='MarkdownV2'
+		)
+		if index >= 5:
+			# break
+			pass
+
+
 
 @bot.message_handler(content_types=['sticker'])
 def sticker_handler(message):
