@@ -2,21 +2,19 @@ import os
 import time
 import datetime
 import random
-import re
 import pandas as pd
+import requests
 
 import telebot
 from telebot import types
 from telebot import formatting
 import config
 
+
 from pyowm.owm import OWM
 
-import requests
-from urllib.request import urlopen
-from typing import List, Dict
-from bs4 import BeautifulSoup
-
+import Modules.WebScrapeModule
+# import Modules.GetWeatherModule
 
 
 telebot_token = os.environ.get('TELEBOT_API')
@@ -44,6 +42,14 @@ def start(message):
 	/help - print this help message
 	/quote - print a randomly-selected motivational quote
 	/weather - print a forecast for a specific city
+
+	Print some information from "Special occurrences today" page of the Wikipedia:
+	/events
+	/births
+	/deaths
+	/holidays
+
+	/news - print world news from The Telegraph:
 	"""
 	)
 
@@ -57,6 +63,14 @@ def welcome(message):
 	/help - print this help message
 	/quote - print a randomly-selected motivational quote
 	/weather - print a forecast for a specific city
+
+	Print some information from "Special occurrences today" page of the Wikipedia:
+	/events
+	/births
+	/deaths
+	/holidays
+
+	/news - print world news from The Telegraph:
 	""")
 
 
@@ -114,46 +128,10 @@ def process_name_step(message):
 			output += " - Failed to get hourly forecast for this location"
 		bot.send_message(message.chat.id, output)
 
-
-# Web scrape Wikipedia
-def get_wikipedia_info(category:str):
-	#
-	month, date = pd.to_datetime('today').strftime('%B %d').split(' ')
-	# example: url = 'https://en.wikipedia.org/wiki/May_12'
-	url = f'https://en.wikipedia.org/wiki/{month}_{date}'
-	print(url)
-	page = requests.get(url)
-	soup = BeautifulSoup(
-		page.content, 
-		'html.parser'
-	)
-	#
-	totalText = soup.prettify()
-	totalText2 = soup.get_text()
-	#
-	totalText3 = totalText2.split('Events[edit]')[1]
-	events, births_deaths_holidays_references = totalText3.split('Births[edit]')
-	births, deaths_holidays_references        = births_deaths_holidays_references.split('Deaths[edit]')
-	deaths, holidays_references               = deaths_holidays_references.split('Holidays and observances[edit]')
-	holidays                                  = holidays_references.split('References[edit]')[0]
-	#
-	output_dict = {'events':events, 'births':births, 'deaths':deaths, 'holidays':holidays}
-	# Process the strings, replacing unnecessary tags
-	for i in output_dict:
-		# Remove leading & trailing "\n" and " " characters
-		output_dict[i] = output_dict[i].strip()
-		# Replace "[edit]" with ":"
-		output_dict[i] = output_dict[i].replace('[edit]', ':')
-		# then replace pattern like "[1]" with nothing
-		output_dict[i] = re.sub('\[[0-9]+\]', '.', output_dict[i])
-		# Replace "[citation needed]" with nothing
-		output_dict[i] = output_dict[i].replace('[citation needed]', '.')
-	#
-	return output_dict[category]
-
+### WEB SCRAPE WIKIPEDIA
 @bot.message_handler(commands=['events', 'births', 'deaths', 'holidays'])
 def print_births(message):
-	output = get_wikipedia_info(message.text[1:])
+	output = Modules.WebScrapeModule.scrape_wikipedia(message.text[1:])
 	if len(output) > 4000:
 		output2 = output.split('\n')
 		chunk = ''
@@ -169,45 +147,11 @@ def print_births(message):
 	else:
 		bot.send_message(message.chat.id, output)
 
-
-# WEb scrape the newspaper webpage
-def scrape_newspaper_funct():
-	""" returns a Pandas DataFrame"""
-	url = 'https://www.theguardian.com/world'
-	page = urlopen(url)
-	html = page.read().decode("utf-8")
-	soup = BeautifulSoup(html, "html.parser")
-	stuff = soup.find_all('div',  class_="fc-item__container")
-	stuff
-	links, headlines, texts = [],[],[]
-	for i in stuff:
-		### LINKS
-		link = i.find('a')['href']
-		# print(link)
-		links.append(link)
-		### HEADLINE
-		headline = i.find('span', class_="js-headline-text").contents[0]
-		# print(headline)
-		headlines.append(headline)
-		### TEXT
-		text = i.find('div', class_="fc-item__standfirst").contents[0]
-		# print(text)
-		texts.append(text)
-	df = pd.DataFrame([], columns=['Headline', 'Text', 'Link'])
-	headlines = [ i.strip() for i in headlines ]
-	texts = [ i.strip() for i in texts ]
-	df['Headline'] = headlines
-	df['Text'] = texts
-	df['Link'] = links
-	return df
-
-
+### WEB SCRAPE "THE TELEGRAPH" NEWSPAPER
 @bot.message_handler(commands=['news'])
 def scrape_newspaper(message):
-	dataframe = scrape_newspaper_funct()
-	# Remove '' values, or rather, replace them with a ' ' space
-	dataframe.replace('', ' ', inplace=True)
-	dataframe.fillna(' ', inplace=True)
+	# dataframe = scrape_newspaper_funct()
+	dataframe = Modules.WebScrapeModule.scrape_thetelegraph()
 	for index, row in dataframe.iterrows():
 		# one_news_piece = f"{row['Headline']}\n{row['Text']}\n{row['Link']}\n\n"
 		# bot.send_message(message.chat.id, one_news_piece)
