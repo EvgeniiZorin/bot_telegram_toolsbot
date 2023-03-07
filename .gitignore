@@ -3,3 +3,6 @@
 # pycache
 __pycache__/
 Modules/__pycache__/
+*.py[cod]
+
+ignorethis.txt
