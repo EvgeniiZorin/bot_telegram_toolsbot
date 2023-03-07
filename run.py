@@ -131,7 +131,8 @@ def process_name_step(message):
 ### WEB SCRAPE WIKIPEDIA
 @bot.message_handler(commands=['events', 'births', 'deaths', 'holidays'])
 def print_births(message):
-	output = Modules.WebScrapeModule.scrape_wikipedia(message.text[1:])
+	month_today, date_today = pd.to_datetime('today').strftime('%B %d').split(' ')
+	output = Modules.WebScrapeModule.scrape_wikipedia(month_today, date_today, message.text[1:])
 	if len(output) > 4000:
 		output2 = output.split('\n')
 		chunk = ''

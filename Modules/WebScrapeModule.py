@@ -6,10 +6,12 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import re
 
-def scrape_wikipedia(category:str):
+def scrape_wikipedia(month:str, date:str, category:str):
 	""" Scrapes Wikipedia's page on events, deaths, holidays on the current date.
 	
 	## Arguments:
+	- `month`: e.g. 'March';
+	- `date`: e.g. '06'
 	- `category` - which category would you like to print from the daily events? Available choices: `['events', 'births', 'deaths', 'holidays']`.
 	
 	## Function: 
@@ -24,7 +26,7 @@ def scrape_wikipedia(category:str):
 	## Returns:
 	a string"""
 	#
-	month, date = pd.to_datetime('today').strftime('%B %d').split(' ')
+	# month, date = pd.to_datetime('today').strftime('%B %d').split(' ')
 	url = f'https://en.wikipedia.org/wiki/{month}_{date}'
 	print(url)
 	page = requests.get(url)
@@ -35,12 +37,24 @@ def scrape_wikipedia(category:str):
 	#
 	totalText = soup.prettify()
 	totalText2 = soup.get_text()
+	# print('totalText2:\n' + '-'*50)
+	# print(totalText2)
 	#
-	totalText3 = totalText2.split('Events[edit]')[1]
-	events, births_deaths_holidays_references = totalText3.split('Births[edit]')
-	births, deaths_holidays_references        = births_deaths_holidays_references.split('Deaths[edit]')
-	deaths, holidays_references               = deaths_holidays_references.split('Holidays and observances[edit]')
-	holidays                                  = holidays_references.split('References[edit]')[0]
+	try:
+		totalText3 = totalText2.split('Events[edit]')[1]
+		# print('totalText3:\n' + '-'*50)
+		# print(totalText3)
+		events, births_deaths_holidays_references = totalText3.split('Births[edit]')
+		births, deaths_holidays_references        = births_deaths_holidays_references.split('Deaths[edit]')
+		deaths, holidays_references               = deaths_holidays_references.split('Holidays and observances[edit]')
+		holidays                                  = holidays_references.split('References[edit]')[0]
+	except IndexError:
+		totalText3 = totalText2.split('\nEvents\n')[1]
+		# print('totalText3:\n' + '-'*50)
+		events, births_deaths_holidays_references = totalText3.split('Births')
+		births, deaths_holidays_references        = births_deaths_holidays_references.split('Deaths')
+		deaths, holidays_references               = deaths_holidays_references.split('Holidays and observances')
+		holidays                                  = holidays_references.split('References')[0]
 	#
 	output_dict = {'events':events, 'births':births, 'deaths':deaths, 'holidays':holidays}
 	# Process the strings, replacing unnecessary tags
