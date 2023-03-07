@@ -1,8 +1,10 @@
+# virtual environment
 .venv
 
 # pycache
 __pycache__/
-Modules/__pycache__/
 *.py[cod]
 
+# Test files to ignore
 ignorethis.txt
+ignore_*
